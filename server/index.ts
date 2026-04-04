@@ -10,6 +10,15 @@ const DATA_DIR = path.resolve(import.meta.dirname, '..', 'data')
 app.use(cors())
 app.use(express.json({ limit: '5mb' }))
 
+// Serve built frontend in production
+const DIST_DIR = path.resolve(import.meta.dirname, '..', 'dist')
+try {
+  await fs.access(DIST_DIR)
+  app.use(express.static(DIST_DIR))
+} catch {
+  // dist doesn't exist (dev mode) — Vite handles frontend
+}
+
 // Ensure data directory exists
 await fs.mkdir(DATA_DIR, { recursive: true })
 
@@ -70,6 +79,16 @@ app.delete('/api/patients/:id', async (req, res) => {
   }
   res.json({ ok: true })
 })
+
+// SPA catch-all: serve index.html for non-API routes (production only)
+try {
+  await fs.access(path.join(DIST_DIR, 'index.html'))
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(DIST_DIR, 'index.html'))
+  })
+} catch {
+  // dev mode — no catch-all needed
+}
 
 app.listen(PORT, () => {
   console.log(`API server running on http://localhost:${PORT}`)

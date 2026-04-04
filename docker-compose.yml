@@ -1,0 +1,17 @@
+services:
+  dosage-bot:
+    build: .
+    image: dosage-bot:latest
+    container_name: dosage-bot
+    restart: unless-stopped
+    ports:
+      - "5180:3001"
+    volumes:
+      - /mnt/user/appdata/dosage-bot/data:/app/data
+    environment:
+      - TZ=America/Chicago
+    labels:
+      net.unraid.docker.managed: composeman
+      net.unraid.docker.icon: ''
+      net.unraid.docker.webui: http://[IP]:[PORT:5180]
+      net.unraid.docker.shell: ''
