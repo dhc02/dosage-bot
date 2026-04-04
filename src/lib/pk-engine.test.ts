@@ -10,7 +10,7 @@ import {
   concentrationAtTime,
 } from './pk-engine'
 import { DEFAULT_PK_PARAMS } from '../types'
-import type { Dose, PKParams } from '../types'
+import type { Dose } from '../types'
 
 const params = DEFAULT_PK_PARAMS
 

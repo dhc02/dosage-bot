@@ -359,18 +359,6 @@ export const usePatientStore = create<PatientStore>()(
     },
     {
       name: 'tirzepatide-scheduler-storage',
-      onRehydrate: () => {
-        return (state) => {
-          if (state && state.patients.length === 0) {
-            const defaultPd = createDefaultPatient()
-            state.patients = [defaultPd]
-            state.activePatientId = defaultPd.patient.id
-          }
-          if (state && !state.activePatientId && state.patients.length > 0) {
-            state.activePatientId = state.patients[0].patient.id
-          }
-        }
-      },
     },
   ),
 )
