@@ -1,4 +1,5 @@
 import { PatientSelector } from '../patient/PatientSelector'
+import { ViewModeToggle } from '../shared/ViewModeToggle'
 
 export function Header() {
   return (
@@ -11,7 +12,10 @@ export function Header() {
         </div>
         <h1 className="text-lg font-semibold text-text">Tirzepatide PK Scheduler</h1>
       </div>
-      <PatientSelector />
+      <div className="flex items-center gap-3">
+        <ViewModeToggle />
+        <PatientSelector />
+      </div>
     </header>
   )
 }
