@@ -57,6 +57,7 @@ export interface PatientData {
   patient: Patient;
   plans: Plan[];
   activePlanIds: ActivePlanIds;
+  experienceLogs?: ExperienceLog[];
 }
 
 export interface ConcentrationPoint {
@@ -80,4 +81,20 @@ export interface ComputedPlan {
   plan: Plan;
   curve: ConcentrationPoint[];
   metrics: PlanMetrics;
+}
+
+export type MentalState = 'focused' | 'foggy' | 'anxious' | 'calm' | 'normal' | 'irritable' | 'low';
+
+export const MENTAL_STATES: MentalState[] = ['focused', 'calm', 'normal', 'foggy', 'low', 'anxious', 'irritable'];
+
+export interface ExperienceLog {
+  id: string;
+  timestamp: number;
+  mentalState: MentalState;
+  hungerLevel: number;        // 1-10
+  energyLevel: number;        // 1-10
+  notes?: string;
+  serumConcentration?: number;       // ng/mL snapshot
+  slopeNgPerMlPerHour?: number;      // signed snapshot
+  hoursSinceLastDose?: number;
 }
