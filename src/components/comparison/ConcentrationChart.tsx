@@ -210,6 +210,15 @@ export function ConcentrationChart({
 
   const isZoomed = zoomDomain !== null
 
+  // Compute brush indices from current zoom state so pinch/Ctrl-scroll zoom
+  // is reflected in the brush handle positions.
+  const brushStartIndex = zoomDomain
+    ? data.findIndex(d => d.timestamp >= zoomDomain[0])
+    : 0
+  const brushEndIndex = zoomDomain
+    ? (() => { for (let i = data.length - 1; i >= 0; i--) if (data[i].timestamp <= zoomDomain[1]) return i; return data.length - 1 })()
+    : data.length - 1
+
   // Visible dose markers
   const visibleMarkers = zoomDomain
     ? doseMarkers.filter(m => m.timestamp >= zoomDomain[0] && m.timestamp <= zoomDomain[1])
@@ -324,6 +333,8 @@ export function ConcentrationChart({
                 stroke="#cbd5e1"
                 fill="#f8fafc"
                 travellerWidth={8}
+                startIndex={brushStartIndex}
+                endIndex={brushEndIndex}
                 onChange={handleBrushChange}
                 tickFormatter={(ts: number) => format(new Date(ts), 'MMM d')}
               />
