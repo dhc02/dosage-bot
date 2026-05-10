@@ -239,7 +239,7 @@ export function ConcentrationChart({
         <ResponsiveContainer width="100%" height={compact ? 280 : 360}>
           <LineChart
             data={data}
-            margin={compact ? { top: 5, right: 5, bottom: 5, left: 0 } : { top: 5, right: 20, bottom: 5, left: 10 }}
+            margin={{ top: 5, right: 5, bottom: 5, left: 5 }}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
             <XAxis
