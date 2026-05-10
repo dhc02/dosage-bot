@@ -5,6 +5,7 @@ import { MobileDashboard } from './MobileDashboard'
 import { MobileChartView } from './MobileChartView'
 import { MobileLogsView } from './MobileLogsView'
 import { ExperienceLogForm } from './ExperienceLogForm'
+import { DoseEntryFlow } from './DoseEntryFlow'
 
 export function MobileApp() {
   const { mobileActiveTab, setMobileActiveTab } = useUIStore()
@@ -19,6 +20,7 @@ export function MobileApp() {
       </main>
       <MobileBottomNav active={mobileActiveTab} onChange={setMobileActiveTab} />
       <ExperienceLogForm />
+      <DoseEntryFlow />
     </div>
   )
 }
