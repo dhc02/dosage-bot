@@ -37,6 +37,7 @@ interface Props {
   hasBaseline: boolean;
   hasExperiment: boolean;
   hasActual: boolean;
+  compact?: boolean;
 }
 
 function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ name: string; value: number; color: string }>; label?: number }) {
@@ -72,6 +73,7 @@ export function ConcentrationChart({
   hasBaseline,
   hasExperiment,
   hasActual,
+  compact,
 }: Props) {
   const [zoomDomain, setZoomDomain] = useState<[number, number] | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -226,14 +228,19 @@ export function ConcentrationChart({
               Reset zoom
             </button>
           )}
-          <span className="text-[10px] text-text-secondary">
-            {isZoomed ? 'Ctrl+scroll to zoom' : 'Ctrl+scroll to zoom'}
-          </span>
+          {!compact && (
+            <span className="text-[10px] text-text-secondary">
+              Ctrl+scroll to zoom
+            </span>
+          )}
         </div>
       </div>
       <div ref={containerRef}>
-        <ResponsiveContainer width="100%" height={360}>
-          <LineChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
+        <ResponsiveContainer width="100%" height={compact ? 280 : 360}>
+          <LineChart
+            data={data}
+            margin={compact ? { top: 5, right: 5, bottom: 5, left: 0 } : { top: 5, right: 20, bottom: 5, left: 10 }}
+          >
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
             <XAxis
               dataKey="timestamp"
@@ -248,11 +255,11 @@ export function ConcentrationChart({
               domain={[0, yMax]}
               tick={{ fontSize: 11, fill: '#64748b' }}
               stroke="#cbd5e1"
-              label={{ value: 'ng/mL', angle: -90, position: 'insideLeft', style: { fontSize: 11, fill: '#94a3b8' } }}
+              label={compact ? undefined : { value: 'ng/mL', angle: -90, position: 'insideLeft', style: { fontSize: 11, fill: '#94a3b8' } }}
             />
             <Tooltip content={<CustomTooltip />} />
             <Legend
-              wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
+              wrapperStyle={{ fontSize: compact ? 10 : 12, paddingTop: 8 }}
             />
 
             {hasBaseline && (
@@ -312,7 +319,7 @@ export function ConcentrationChart({
               <Brush
                 key={data.length}
                 dataKey="timestamp"
-                height={24}
+                height={compact ? 20 : 24}
                 stroke="#cbd5e1"
                 fill="#f8fafc"
                 travellerWidth={8}

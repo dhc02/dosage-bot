@@ -93,6 +93,7 @@ export function MobileChartView() {
           hasBaseline={!!baseline && baselineVisible}
           hasExperiment={!!experiment && experimentVisible}
           hasActual={!!actual && actualVisible}
+          compact
         />
       )}
     </div>
