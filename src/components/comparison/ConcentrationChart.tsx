@@ -253,6 +253,7 @@ export function ConcentrationChart({
             />
             <YAxis
               domain={[0, yMax]}
+              width={compact ? 32 : undefined}
               tick={{ fontSize: 11, fill: '#64748b' }}
               stroke="#cbd5e1"
               label={compact ? undefined : { value: 'ng/mL', angle: -90, position: 'insideLeft', style: { fontSize: 11, fill: '#94a3b8' } }}
