@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { nanoid } from 'nanoid'
-import type { PatientData, Plan, Dose, PlanType, PKParams } from '../types'
+import type { PatientData, Plan, Dose, PlanType, PKParams, ExperienceLog } from '../types'
 import { DEFAULT_PK_PARAMS } from '../types'
 import { generateStandardTitration } from '../lib/standard-schedules'
 import * as api from '../lib/api'
@@ -85,6 +85,11 @@ interface PatientStore {
   updateDose: (planId: string, doseId: string, updates: Partial<Omit<Dose, 'id'>>) => void;
   removeDose: (planId: string, doseId: string) => void;
   setDoses: (planId: string, doses: Dose[]) => void;
+
+  // Experience logs
+  addExperienceLog: (log: Omit<ExperienceLog, 'id'>) => void;
+  removeExperienceLog: (logId: string) => void;
+  getExperienceLogs: () => ExperienceLog[];
 }
 
 export const usePatientStore = create<PatientStore>()(
@@ -354,6 +359,27 @@ export const usePatientStore = create<PatientStore>()(
               p.id === planId ? { ...p, doses } : p
             ),
           }))
+        },
+
+        addExperienceLog(log: Omit<ExperienceLog, 'id'>) {
+          const newLog: ExperienceLog = { ...log, id: nanoid() }
+          updateActivePatient(pd => ({
+            ...pd,
+            experienceLogs: [...(pd.experienceLogs ?? []), newLog],
+          }))
+        },
+
+        removeExperienceLog(logId: string) {
+          updateActivePatient(pd => ({
+            ...pd,
+            experienceLogs: (pd.experienceLogs ?? []).filter(l => l.id !== logId),
+          }))
+        },
+
+        getExperienceLogs() {
+          const pd = get().getActivePatient()
+          if (!pd) return []
+          return [...(pd.experienceLogs ?? [])].sort((a, b) => b.timestamp - a.timestamp)
         },
       }
     },
