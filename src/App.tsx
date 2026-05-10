@@ -1,8 +1,21 @@
 import { Header } from './components/layout/Header'
 import { Sidebar } from './components/layout/Sidebar'
 import { MainContent } from './components/layout/MainContent'
+import { MobileApp } from './components/mobile/MobileApp'
+import { useUIStore } from './store/ui-store'
+import { useIsMobile } from './hooks/useIsMobile'
 
 export default function App() {
+  const { viewMode } = useUIStore()
+  const isMobileViewport = useIsMobile()
+
+  const effectiveMode: 'mobile' | 'desktop' =
+    viewMode === 'auto' ? (isMobileViewport ? 'mobile' : 'desktop') : viewMode
+
+  if (effectiveMode === 'mobile') {
+    return <MobileApp />
+  }
+
   return (
     <div className="h-full flex flex-col">
       <Header />
