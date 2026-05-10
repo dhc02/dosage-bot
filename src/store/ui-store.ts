@@ -2,6 +2,7 @@ import { create } from 'zustand'
 
 export type ViewMode = 'auto' | 'mobile' | 'desktop';
 export type MobileTab = 'dashboard' | 'chart' | 'logs';
+export type DoseEntryStep = 'enter' | 'preview';
 
 interface UIStore {
   selectedPlanId: string | null;
@@ -27,6 +28,14 @@ interface UIStore {
   // Experience log modal
   showExperienceLogForm: boolean;
   setShowExperienceLogForm: (show: boolean) => void;
+
+  // Mobile dose entry flow
+  showDoseEntry: boolean;
+  doseEntryStep: DoseEntryStep;
+  setShowDoseEntry: (show: boolean) => void;
+  setDoseEntryStep: (step: DoseEntryStep) => void;
+  openDoseEntry: () => void;
+  closeDoseEntry: () => void;
 }
 
 export const useUIStore = create<UIStore>()((set) => ({
@@ -54,4 +63,11 @@ export const useUIStore = create<UIStore>()((set) => ({
 
   showExperienceLogForm: false,
   setShowExperienceLogForm: (show) => set({ showExperienceLogForm: show }),
+
+  showDoseEntry: false,
+  doseEntryStep: 'enter',
+  setShowDoseEntry: (show) => set({ showDoseEntry: show }),
+  setDoseEntryStep: (step) => set({ doseEntryStep: step }),
+  openDoseEntry: () => set({ showDoseEntry: true, doseEntryStep: 'enter' }),
+  closeDoseEntry: () => set({ showDoseEntry: false, doseEntryStep: 'enter' }),
 }))
