@@ -1,5 +1,8 @@
 import { create } from 'zustand'
 
+export type ViewMode = 'auto' | 'mobile' | 'desktop';
+export type MobileTab = 'dashboard' | 'chart' | 'logs';
+
 interface UIStore {
   selectedPlanId: string | null;
   setSelectedPlanId: (id: string | null) => void;
@@ -12,6 +15,18 @@ interface UIStore {
 
   hiddenPlanIds: string[];
   togglePlanVisibility: (planId: string) => void;
+
+  // View mode (mobile vs desktop)
+  viewMode: ViewMode;
+  setViewMode: (mode: ViewMode) => void;
+
+  // Mobile tab navigation
+  mobileActiveTab: MobileTab;
+  setMobileActiveTab: (tab: MobileTab) => void;
+
+  // Experience log modal
+  showExperienceLogForm: boolean;
+  setShowExperienceLogForm: (show: boolean) => void;
 }
 
 export const useUIStore = create<UIStore>()((set) => ({
@@ -30,4 +45,13 @@ export const useUIStore = create<UIStore>()((set) => ({
       ? state.hiddenPlanIds.filter(id => id !== planId)
       : [...state.hiddenPlanIds, planId],
   })),
+
+  viewMode: 'auto',
+  setViewMode: (mode) => set({ viewMode: mode }),
+
+  mobileActiveTab: 'dashboard',
+  setMobileActiveTab: (tab) => set({ mobileActiveTab: tab }),
+
+  showExperienceLogForm: false,
+  setShowExperienceLogForm: (show) => set({ showExperienceLogForm: show }),
 }))
