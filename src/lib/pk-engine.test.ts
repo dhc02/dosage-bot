@@ -8,6 +8,8 @@ import {
   adjustVdForWeight,
   doseTimestamp,
   concentrationAtTime,
+  singleDoseSlope,
+  slopeAtTime,
 } from './pk-engine'
 import { DEFAULT_PK_PARAMS } from '../types'
 import type { Dose } from '../types'
@@ -213,5 +215,71 @@ describe('per-dose weight adjustment', () => {
 
     // 132 lbs (dose override) → smaller Vd → higher concentration
     expect(cWithOverride).toBeGreaterThan(cHeavyDefault)
+  })
+})
+
+describe('singleDoseSlope', () => {
+  it('returns 0 for t<=0', () => {
+    expect(singleDoseSlope(2.5, params, 0)).toBe(0)
+    expect(singleDoseSlope(2.5, params, -5)).toBe(0)
+  })
+
+  it('is positive between t=0+ and Tmax', () => {
+    // Tmax ≈ 59 hours for default params
+    expect(singleDoseSlope(2.5, params, 1)).toBeGreaterThan(0)
+    expect(singleDoseSlope(2.5, params, 30)).toBeGreaterThan(0)
+  })
+
+  it('is approximately zero at Tmax (peak)', () => {
+    const tmax = computeTmax(params)
+    const slope = singleDoseSlope(2.5, params, tmax)
+    expect(Math.abs(slope)).toBeLessThan(0.05) // ng/mL/hr
+  })
+
+  it('is negative after Tmax', () => {
+    expect(singleDoseSlope(2.5, params, 120)).toBeLessThan(0)
+    expect(singleDoseSlope(2.5, params, 240)).toBeLessThan(0)
+  })
+
+  it('decays toward zero at very large t', () => {
+    expect(Math.abs(singleDoseSlope(2.5, params, 24 * 60))).toBeLessThan(0.01)
+  })
+
+  it('scales linearly with dose', () => {
+    const s25 = singleDoseSlope(2.5, params, 30)
+    const s50 = singleDoseSlope(5.0, params, 30)
+    expect(s50 / s25).toBeCloseTo(2.0, 5)
+  })
+
+  it('matches a numerical central-difference approximation', () => {
+    // dC/dt ≈ (C(t+h) - C(t-h)) / (2h)
+    const t = 36
+    const h = 0.01
+    const numerical = (singleDoseConcentration(2.5, params, t + h) - singleDoseConcentration(2.5, params, t - h)) / (2 * h)
+    const analytical = singleDoseSlope(2.5, params, t)
+    expect(analytical).toBeCloseTo(numerical, 3)
+  })
+})
+
+describe('slopeAtTime (superposition)', () => {
+  it('sums per-dose slopes', () => {
+    const doses: Dose[] = [
+      { id: '1', date: '2026-03-26', time: '08:00', amountMg: 2.5 },
+      { id: '2', date: '2026-04-02', time: '08:00', amountMg: 5.0 },
+    ]
+    const ts = doseTimestamp(doses[1]) + 30 * 3600 * 1000 // 30h after dose 2
+    const total = slopeAtTime(doses, params, ts)
+
+    // Dose 1 has been running 7d + 30h = 198h; dose 2 has been running 30h
+    const s1 = singleDoseSlope(2.5, params, 198)
+    const s2 = singleDoseSlope(5.0, params, 30)
+    expect(total).toBeCloseTo(s1 + s2, 6)
+  })
+
+  it('returns 0 if no doses are in the past', () => {
+    const doses: Dose[] = [
+      { id: '1', date: '2099-01-01', time: '08:00', amountMg: 2.5 },
+    ]
+    expect(slopeAtTime(doses, params, Date.now())).toBe(0)
   })
 })

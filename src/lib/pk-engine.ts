@@ -257,3 +257,59 @@ export function computeTmax(params: PKParams): number {
   if (Math.abs(ka - ke) < 1e-10) return 1 / ke
   return Math.log(ka / ke) / (ka - ke)
 }
+
+/**
+ * dC/dt for a single dose at t hours after injection. Returns ng/mL per hour.
+ *
+ *   C(t)  = A * (e^(-ke*t) - e^(-ka*t))      A = (F*D*ka)/(Vd*(ka-ke))
+ *   dC/dt = A * (ka*e^(-ka*t) - ke*e^(-ke*t))
+ *
+ * Limiting case ka ≈ ke:
+ *   C(t)  = (F*D*ka/Vd) * t * e^(-ke*t)
+ *   dC/dt = (F*D*ka/Vd) * e^(-ke*t) * (1 - ke*t)
+ */
+export function singleDoseSlope(
+  doseMg: number,
+  params: PKParams,
+  tHours: number,
+): number {
+  if (tHours <= 0) return 0
+
+  const ke = eliminationRate(params.halfLifeDays)
+  const ka = params.absorptionRateKa
+  const F = params.bioavailability
+  const Vd = params.volumeOfDistL
+  const D = doseMg * 1000 // mg → micrograms
+
+  if (Math.abs(ka - ke) < 1e-10) {
+    return (F * D * ka / Vd) * Math.exp(-ke * tHours) * (1 - ke * tHours)
+  }
+
+  const A = (F * D * ka) / (Vd * (ka - ke))
+  return A * (ka * Math.exp(-ka * tHours) - ke * Math.exp(-ke * tHours))
+}
+
+/**
+ * Total dC/dt at a given timestamp by summing per-dose slopes (superposition).
+ * Same weight-resolution rules as concentrationAtTime. ng/mL per hour.
+ */
+export function slopeAtTime(
+  doses: Dose[],
+  params: PKParams,
+  timestampMs: number,
+  defaultWeightLbs?: number,
+): number {
+  const weights = resolveWeights(doses, defaultWeightLbs)
+  let total = 0
+  for (let i = 0; i < doses.length; i++) {
+    const doseMs = doseTimestamp(doses[i])
+    const tHours = (timestampMs - doseMs) / (1000 * 3600)
+    if (tHours > 0) {
+      const effectiveParams = weights[i]
+        ? { ...params, volumeOfDistL: adjustVdForWeight(lbsToKg(weights[i]!), 70, params.volumeOfDistL) }
+        : params
+      total += singleDoseSlope(doses[i].amountMg, effectiveParams, tHours)
+    }
+  }
+  return total
+}
