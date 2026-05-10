@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Dose, Plan } from '../types'
+import type { Dose, Plan, InjectionSite } from '../types'
 import {
   concentrationAtTime,
   computeConcentrationCurve,
@@ -10,6 +10,7 @@ export interface PendingDose {
   date: string;
   time: string;
   amountMg: number;
+  injectionSite?: InjectionSite;
 }
 
 export interface DosePreviewCurvePoint {
@@ -55,6 +56,7 @@ export function useDosePreview(
       date: pending.date,
       time: pending.time,
       amountMg: pending.amountMg,
+      injectionSite: pending.injectionSite,
     }
 
     const existingDoses: Dose[] = actualPlan?.doses ?? []

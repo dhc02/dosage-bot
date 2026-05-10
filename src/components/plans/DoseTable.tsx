@@ -5,6 +5,7 @@ import { formatDate } from '../../lib/date-utils'
 import { resolveWeights } from '../../lib/pk-engine'
 import { QuickSchedule } from './QuickSchedule'
 import { TimeInput } from '../shared/TimeInput'
+import { INJECTION_SITE_LABELS, type InjectionSite } from '../../types'
 import type { Plan } from '../../types'
 
 export function DoseTable() {
@@ -105,6 +106,7 @@ export function DoseTable() {
                 {showWeight && (
                   <th className="text-right px-3 py-2 font-medium text-text-secondary text-xs">Weight (lbs)</th>
                 )}
+                <th className="text-left px-3 py-2 font-medium text-text-secondary text-xs">Site</th>
                 <th className="text-left px-3 py-2 font-medium text-text-secondary text-xs">Note</th>
                 <th className="w-8"></th>
               </tr>
@@ -152,6 +154,22 @@ export function DoseTable() {
                       />
                     </td>
                   )}
+                  <td className="px-3 py-1.5">
+                    <select
+                      value={dose.injectionSite ?? ''}
+                      onChange={e => {
+                        const val = e.target.value as InjectionSite | ''
+                        updateDose(plan.id, dose.id, { injectionSite: val || undefined })
+                      }}
+                      className="w-16 text-xs font-mono bg-transparent border border-border rounded px-1 py-0.5 outline-none focus:border-primary-400 text-text-secondary"
+                    >
+                      <option value="">—</option>
+                      <option value="belly">{INJECTION_SITE_LABELS.belly}</option>
+                      <option value="thigh">{INJECTION_SITE_LABELS.thigh}</option>
+                      <option value="arm">{INJECTION_SITE_LABELS.arm}</option>
+                      <option value="other">{INJECTION_SITE_LABELS.other}</option>
+                    </select>
+                  </td>
                   <td className="px-3 py-1.5">
                     <input
                       type="text"

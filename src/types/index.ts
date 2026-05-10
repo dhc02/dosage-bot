@@ -20,11 +20,23 @@ export const DEFAULT_PK_PARAMS: PKParams = {
   absorptionRateKa: 0.0373,
 };
 
+export type InjectionSite = 'belly' | 'thigh' | 'arm' | 'other';
+
+export const INJECTION_SITES: InjectionSite[] = ['belly', 'thigh', 'arm', 'other'];
+
+export const INJECTION_SITE_LABELS: Record<InjectionSite, string> = {
+  belly: 'Belly',
+  thigh: 'Thigh',
+  arm: 'Arm',
+  other: 'Other',
+};
+
 export interface Dose {
   id: string;
   date: string;       // YYYY-MM-DD
   time: string;       // HH:mm
   amountMg: number;
+  injectionSite?: InjectionSite;
   note?: string;
   weightLbs?: number; // patient weight at time of dose (overrides plan default)
 }

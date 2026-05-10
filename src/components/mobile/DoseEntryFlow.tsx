@@ -72,6 +72,7 @@ export function DoseEntryFlow() {
       date: pending.date,
       time: pending.time,
       amountMg: pending.amountMg,
+      injectionSite: pending.injectionSite,
     })
 
     setToast(`Saved ${pending.amountMg}mg`)

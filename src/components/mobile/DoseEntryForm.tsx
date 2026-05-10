@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { addDays, parseISO, format } from 'date-fns'
 import type { PendingDose } from '../../hooks/useDosePreview'
+import { INJECTION_SITES, INJECTION_SITE_LABELS, type InjectionSite } from '../../types'
 
 const QUICK_DOSES = [2.5, 5, 7.5, 10, 12.5, 15]
 
@@ -157,7 +158,7 @@ export function DoseEntryForm({ value, onChange, onNext, onCancel }: Props) {
       </div>
 
       {/* Time */}
-      <div className="mb-6">
+      <div className="mb-5">
         <div className="text-xs font-medium text-text-secondary uppercase tracking-wider mb-2">
           Time
         </div>
@@ -167,6 +168,31 @@ export function DoseEntryForm({ value, onChange, onNext, onCancel }: Props) {
           onChange={e => onChange({ ...value, time: e.target.value })}
           className="w-full min-h-11 px-3 font-mono text-sm bg-surface-alt border border-border rounded-lg outline-none focus:border-primary-400 text-text"
         />
+      </div>
+
+      {/* Injection site */}
+      <div className="mb-6">
+        <div className="text-xs font-medium text-text-secondary uppercase tracking-wider mb-2">
+          Injection Site
+        </div>
+        <div className="grid grid-cols-4 gap-2">
+          {INJECTION_SITES.map(site => {
+            const selected = value.injectionSite === site || (!value.injectionSite && site === 'belly')
+            return (
+              <button
+                key={site}
+                onClick={() => onChange({ ...value, injectionSite: site })}
+                className={`min-h-11 rounded-lg border text-sm font-medium transition-colors ${
+                  selected
+                    ? 'bg-primary-600 text-white border-primary-600'
+                    : 'border-border text-text-secondary hover:bg-surface-alt'
+                }`}
+              >
+                {INJECTION_SITE_LABELS[site]}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       <button
