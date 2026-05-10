@@ -12,6 +12,7 @@ import { doseDateRange } from '../../lib/date-utils'
 import { CurrentLevelCard } from './CurrentLevelCard'
 import { SlopeIndicator } from './SlopeIndicator'
 import { BaselineComparison } from './BaselineComparison'
+import { PeakTiming } from './PeakTiming'
 
 export function MobileDashboard() {
   const { getActivePlan } = usePatientStore()
@@ -46,6 +47,8 @@ export function MobileDashboard() {
         <CurrentLevelCard concentration={currentConcentration} hasActualPlan={hasActual} />
 
         {hasActual && <SlopeIndicator slopeNgPerMlPerHour={currentSlopePerHour} />}
+
+        {hasActual && <PeakTiming actualPlan={actualPlan} now={now} />}
 
         {hasActual && baselineMetrics && baselineMetrics.peakConcentration > 0 && (
           <BaselineComparison
