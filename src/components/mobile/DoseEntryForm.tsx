@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { addDays, parseISO, format } from 'date-fns'
 import type { PendingDose } from '../../hooks/useDosePreview'
-import { INJECTION_SITES, INJECTION_SITE_LABELS, type InjectionSite } from '../../types'
+import { INJECTION_SITES, INJECTION_SITE_LABELS } from '../../types'
 
 const QUICK_DOSES = [2.5, 5, 7.5, 10, 12.5, 15]
 
