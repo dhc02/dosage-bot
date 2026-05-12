@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { usePatientStore } from '../../store/patient-store'
 import { useUIStore } from '../../store/ui-store'
-import { concentrationAtTime, slopeAtTime, doseTimestamp } from '../../lib/pk-engine'
+import { concentrationAtTime, slopeAtTime, doseTimestamp, findNextPeakTime, findPreviousPeakTime } from '../../lib/pk-engine'
 import { MENTAL_STATES, type MentalState } from '../../types'
 
 export function ExperienceLogForm() {
@@ -22,6 +22,8 @@ export function ExperienceLogForm() {
     let serum: number | undefined
     let slopePerHour: number | undefined
     let hoursSinceLast: number | undefined
+    let hoursUntilPeak: number | undefined
+    let hoursSincePeak: number | undefined
 
     if (actual && actual.doses.length > 0) {
       serum = concentrationAtTime(actual.doses, actual.pkParams, ts, actual.startingWeightLbs)
@@ -30,6 +32,14 @@ export function ExperienceLogForm() {
       const lastDoseTs = Math.max(...actual.doses.map(doseTimestamp).filter(t => t <= ts))
       if (Number.isFinite(lastDoseTs)) {
         hoursSinceLast = (ts - lastDoseTs) / (1000 * 3600)
+      }
+
+      if (slopePerHour > 0) {
+        const peakMs = findNextPeakTime(actual.doses, actual.pkParams, ts, actual.startingWeightLbs)
+        if (peakMs != null) hoursUntilPeak = (peakMs - ts) / (1000 * 3600)
+      } else if (slopePerHour < 0) {
+        const peakMs = findPreviousPeakTime(actual.doses, actual.pkParams, ts, actual.startingWeightLbs)
+        if (peakMs != null) hoursSincePeak = (ts - peakMs) / (1000 * 3600)
       }
     }
 
@@ -42,6 +52,8 @@ export function ExperienceLogForm() {
       serumConcentration: serum,
       slopeNgPerMlPerHour: slopePerHour,
       hoursSinceLastDose: hoursSinceLast,
+      hoursUntilPeak,
+      hoursSincePeak,
     })
 
     // Reset & close

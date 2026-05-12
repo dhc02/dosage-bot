@@ -47,6 +47,12 @@ function LogCard({ log, onDelete }: { log: ExperienceLog; onDelete: (id: string)
               {log.hoursSinceLastDose != null && (
                 <span> · {log.hoursSinceLastDose.toFixed(1)}h since dose</span>
               )}
+              {log.hoursUntilPeak != null && (
+                <span> · Peak in {log.hoursUntilPeak.toFixed(1)}h</span>
+              )}
+              {log.hoursSincePeak != null && (
+                <span> · Peak {log.hoursSincePeak.toFixed(1)}h ago</span>
+              )}
             </div>
           )}
           {log.notes && (

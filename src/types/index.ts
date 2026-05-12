@@ -109,4 +109,6 @@ export interface ExperienceLog {
   serumConcentration?: number;       // ng/mL snapshot
   slopeNgPerMlPerHour?: number;      // signed snapshot
   hoursSinceLastDose?: number;
+  hoursUntilPeak?: number;           // set when on upslope (slope > 0)
+  hoursSincePeak?: number;           // set when on downslope (slope < 0)
 }

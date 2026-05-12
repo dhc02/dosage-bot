@@ -11,6 +11,7 @@ import {
   singleDoseSlope,
   slopeAtTime,
   findNextPeakTime,
+  findPreviousPeakTime,
 } from './pk-engine'
 import { DEFAULT_PK_PARAMS } from '../types'
 import type { Dose } from '../types'
@@ -355,6 +356,80 @@ describe('findNextPeakTime', () => {
     expect(slope).toBeLessThan(0) // confirm we're actually on the downslope
 
     expect(findNextPeakTime(doses, params, checkMs)).toBeNull()
+  })
+})
+
+describe('findPreviousPeakTime', () => {
+  it('finds the previous peak near single-dose Tmax for a lone dose', () => {
+    const dose: Dose = { id: '1', date: '2026-03-26', time: '08:00', amountMg: 2.5 }
+    const doseMs = doseTimestamp(dose)
+    // Check 120h after dose — well past Tmax (~59h), so we're on the downslope
+    const checkMs = doseMs + 120 * 3600 * 1000
+
+    const peakMs = findPreviousPeakTime([dose], params, checkMs)
+    expect(peakMs).not.toBeNull()
+
+    const hoursAfterDose = (peakMs! - doseMs) / 3600000
+    const tmax = computeTmax(params)
+    // Should match analytical Tmax within ~15-min search granularity
+    expect(Math.abs(hoursAfterDose - tmax)).toBeLessThan(0.5)
+  })
+
+  it('returns a time where the slope is approximately zero', () => {
+    const dose: Dose = { id: '1', date: '2026-03-26', time: '08:00', amountMg: 2.5 }
+    const checkMs = doseTimestamp(dose) + 120 * 3600 * 1000
+    const peakMs = findPreviousPeakTime([dose], params, checkMs)
+    expect(peakMs).not.toBeNull()
+    const slopeAtPeak = slopeAtTime([dose], params, peakMs!)
+    expect(Math.abs(slopeAtPeak)).toBeLessThan(0.05)
+  })
+
+  it('returns null when still on upslope (slope positive)', () => {
+    const dose: Dose = { id: '1', date: '2026-03-26', time: '08:00', amountMg: 2.5 }
+    // 10h after dose — still rising
+    const checkMs = doseTimestamp(dose) + 10 * 3600 * 1000
+    expect(findPreviousPeakTime([dose], params, checkMs)).toBeNull()
+  })
+
+  it('returns null when there are no doses in the past', () => {
+    const dose: Dose = { id: '1', date: '2099-01-01', time: '08:00', amountMg: 2.5 }
+    expect(findPreviousPeakTime([dose], params, Date.now())).toBeNull()
+  })
+
+  it('returns null when the only past peak is more than 7 days back', () => {
+    const dose: Dose = { id: '1', date: '2026-03-26', time: '08:00', amountMg: 2.5 }
+    // 15 days after dose — peak (~59h after dose) is far outside the 7-day search window
+    const checkMs = doseTimestamp(dose) + 15 * 24 * 3600 * 1000
+    expect(findPreviousPeakTime([dose], params, checkMs)).toBeNull()
+  })
+
+  it('finds the most recent peak between two doses at steady state', () => {
+    // Weekly 5mg doses. After a fresh dose at steady state, the combined peak
+    // happens fairly soon (well before single-dose Tmax). Walking back from later
+    // in the week, findPreviousPeakTime should pick the post-dose peak, not the
+    // tail of the prior week's peak.
+    const doses: Dose[] = []
+    const base = new Date('2026-01-01T08:00:00')
+    for (let w = 0; w < 12; w++) {
+      const d = new Date(base)
+      d.setDate(d.getDate() + w * 7)
+      doses.push({
+        id: String(w),
+        date: d.toISOString().slice(0, 10),
+        time: '08:00',
+        amountMg: 5.0,
+      })
+    }
+    const lastDoseMs = doseTimestamp(doses[doses.length - 1])
+    // 60h after last dose — past the combined peak, before next dose
+    const checkMs = lastDoseMs + 60 * 3600 * 1000
+    expect(slopeAtTime(doses, params, checkMs)).toBeLessThan(0)
+
+    const peakMs = findPreviousPeakTime(doses, params, checkMs)
+    expect(peakMs).not.toBeNull()
+    // Peak must be after the most recent dose and before the check time
+    expect(peakMs!).toBeGreaterThan(lastDoseMs)
+    expect(peakMs!).toBeLessThan(checkMs)
   })
 })
 

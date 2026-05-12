@@ -329,6 +329,51 @@ export function findNextPeakTime(
 }
 
 /**
+ * Numerically find the timestamp of the most recent past peak before
+ * fromTimestampMs. Returns null if the curve is currently rising (slope >= 0),
+ * if there are no past doses, or if no peak is found within the search window.
+ *
+ * Walks backward in 15-minute steps, stopping at the last dose timestamp or
+ * 7 days back (whichever is sooner). Identifies the peak as the zero-crossing
+ * where slope flips from positive (earlier in time) to negative (later in time),
+ * then linearly interpolates within the crossing step.
+ */
+export function findPreviousPeakTime(
+  doses: Dose[],
+  params: PKParams,
+  fromTimestampMs: number,
+  defaultWeightLbs?: number,
+): number | null {
+  const startSlope = slopeAtTime(doses, params, fromTimestampMs, defaultWeightLbs)
+  if (startSlope >= 0) return null
+
+  const pastDoseTimes = doses.map(doseTimestamp).filter(t => t <= fromTimestampMs)
+  if (pastDoseTimes.length === 0) return null
+  const lastDoseMs = Math.max(...pastDoseTimes)
+
+  const sevenDaysAgoMs = fromTimestampMs - 7 * 24 * 3600 * 1000
+  const boundaryMs = Math.max(lastDoseMs, sevenDaysAgoMs)
+
+  const stepMs = 15 * 60 * 1000
+  const maxSteps = Math.ceil((fromTimestampMs - boundaryMs) / stepMs)
+
+  let laterSlope = startSlope // negative
+  for (let i = 1; i <= maxSteps; i++) {
+    const t = fromTimestampMs - i * stepMs
+    if (t < boundaryMs) break
+    const slope = slopeAtTime(doses, params, t, defaultWeightLbs)
+    if (slope >= 0) {
+      // Peak lies between t (slope >= 0) and t + stepMs (slope < 0).
+      // Linear interp: 0 = slope + r*(laterSlope - slope) => r = slope/(slope - laterSlope)
+      const ratio = slope / (slope - laterSlope)
+      return t + ratio * stepMs
+    }
+    laterSlope = slope
+  }
+  return null
+}
+
+/**
  * Total dC/dt at a given timestamp by summing per-dose slopes (superposition).
  * Same weight-resolution rules as concentrationAtTime. ng/mL per hour.
  */
