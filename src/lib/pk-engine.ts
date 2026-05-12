@@ -290,6 +290,45 @@ export function singleDoseSlope(
 }
 
 /**
+ * Numerically find the timestamp of the next peak of the combined-curve, going
+ * forward from fromTimestampMs. Returns null if the curve is already on a
+ * downslope (slope <= 0) at the reference time — i.e., the peak is in the past.
+ *
+ * Why numerical and not computeTmax(): under superposition, a fresh dose at
+ * steady state combines with the decay of prior doses, so the net peak occurs
+ * earlier than single-dose Tmax. computeTmax only describes a lone dose.
+ *
+ * Walks forward in 15-minute steps up to Tmax + 24h, looking for the slope to
+ * cross from positive to non-positive, then linearly interpolates within the
+ * crossing step.
+ */
+export function findNextPeakTime(
+  doses: Dose[],
+  params: PKParams,
+  fromTimestampMs: number,
+  defaultWeightLbs?: number,
+): number | null {
+  const startSlope = slopeAtTime(doses, params, fromTimestampMs, defaultWeightLbs)
+  if (startSlope <= 0) return null
+
+  const stepMs = 15 * 60 * 1000
+  const maxHoursAhead = computeTmax(params) + 24
+  const maxSteps = Math.ceil((maxHoursAhead * 3600 * 1000) / stepMs)
+
+  let prevSlope = startSlope
+  for (let i = 1; i <= maxSteps; i++) {
+    const t = fromTimestampMs + i * stepMs
+    const slope = slopeAtTime(doses, params, t, defaultWeightLbs)
+    if (slope <= 0) {
+      const ratio = prevSlope / (prevSlope - slope)
+      return fromTimestampMs + (i - 1) * stepMs + ratio * stepMs
+    }
+    prevSlope = slope
+  }
+  return null
+}
+
+/**
  * Total dC/dt at a given timestamp by summing per-dose slopes (superposition).
  * Same weight-resolution rules as concentrationAtTime. ng/mL per hour.
  */

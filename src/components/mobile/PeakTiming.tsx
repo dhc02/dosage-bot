@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { Plan } from '../../types'
-import { doseTimestamp, computeTmax } from '../../lib/pk-engine'
+import { doseTimestamp, findNextPeakTime } from '../../lib/pk-engine'
 
 interface Props {
   actualPlan: Plan | undefined;
@@ -11,26 +11,25 @@ export function PeakTiming({ actualPlan, now }: Props) {
   const info = useMemo(() => {
     if (!actualPlan || actualPlan.doses.length === 0) return null
 
-    // Find the most recent dose
     const sorted = [...actualPlan.doses].sort(
       (a, b) => doseTimestamp(b) - doseTimestamp(a)
     )
     const lastDose = sorted[0]
-    const lastDoseMs = doseTimestamp(lastDose)
-    const hoursSinceDose = (now - lastDoseMs) / (1000 * 3600)
 
-    const tmax = computeTmax(actualPlan.pkParams)
-    const hoursUntilPeak = tmax - hoursSinceDose
+    const peakMs = findNextPeakTime(
+      actualPlan.doses,
+      actualPlan.pkParams,
+      now,
+      actualPlan.startingWeightLbs,
+    )
+    const pastPeak = peakMs === null
 
-    const pastPeak = hoursUntilPeak < 0
-    const absHours = Math.abs(hoursUntilPeak)
-
-    // Format: show hours for <72h, days for >=72h
-    let display: string
-    if (absHours < 72) {
-      display = `${Math.round(absHours)}h`
-    } else {
-      display = `${(absHours / 24).toFixed(1)}d`
+    let display: string | null = null
+    if (!pastPeak) {
+      const hoursUntilPeak = (peakMs! - now) / (1000 * 3600)
+      display = hoursUntilPeak < 72
+        ? `${Math.round(hoursUntilPeak)}h`
+        : `${(hoursUntilPeak / 24).toFixed(1)}d`
     }
 
     return {
@@ -59,7 +58,7 @@ export function PeakTiming({ actualPlan, now }: Props) {
         </div>
         <div className="flex flex-col">
           <div className="text-base font-semibold text-text">
-            {info.display} {info.label}
+            {info.display ? `${info.display} ${info.label}` : info.label}
           </div>
           <div className="font-mono text-xs tabular-nums text-text-secondary">
             From dose {info.doseDate} {info.doseTime}
