@@ -1,10 +1,16 @@
 import { useMemo } from 'react'
 import type { Plan } from '../../types'
-import { doseTimestamp, findNextPeakTime } from '../../lib/pk-engine'
+import { doseTimestamp, findNextPeakTime, findPreviousPeakTime } from '../../lib/pk-engine'
 
 interface Props {
   actualPlan: Plan | undefined;
   now: number;
+}
+
+function formatDuration(hours: number): string {
+  return hours < 72
+    ? `${Math.round(hours)}h`
+    : `${(hours / 24).toFixed(1)}d`
 }
 
 export function PeakTiming({ actualPlan, now }: Props) {
@@ -24,18 +30,28 @@ export function PeakTiming({ actualPlan, now }: Props) {
     )
     const pastPeak = peakMs === null
 
-    let display: string | null = null
+    let display: string
     if (!pastPeak) {
       const hoursUntilPeak = (peakMs! - now) / (1000 * 3600)
-      display = hoursUntilPeak < 72
-        ? `${Math.round(hoursUntilPeak)}h`
-        : `${(hoursUntilPeak / 24).toFixed(1)}d`
+      display = `${formatDuration(hoursUntilPeak)} Until peak`
+    } else {
+      const previousPeakMs = findPreviousPeakTime(
+        actualPlan.doses,
+        actualPlan.pkParams,
+        now,
+        actualPlan.startingWeightLbs,
+      )
+      if (previousPeakMs !== null) {
+        const hoursSincePeak = (now - previousPeakMs) / (1000 * 3600)
+        display = `Past peak · ${formatDuration(hoursSincePeak)} ago`
+      } else {
+        display = 'Past peak'
+      }
     }
 
     return {
       pastPeak,
       display,
-      label: pastPeak ? 'Past peak' : 'Until peak',
       doseDate: lastDose.date,
       doseTime: lastDose.time,
     }
@@ -58,7 +74,7 @@ export function PeakTiming({ actualPlan, now }: Props) {
         </div>
         <div className="flex flex-col">
           <div className="text-base font-semibold text-text">
-            {info.display ? `${info.display} ${info.label}` : info.label}
+            {info.display}
           </div>
           <div className="font-mono text-xs tabular-nums text-text-secondary">
             From dose {info.doseDate} {info.doseTime}
