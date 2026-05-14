@@ -1,6 +1,6 @@
 {
-  "name": "Tirzepatide PK Scheduler",
-  "short_name": "PK Scheduler",
+  "name": "Dosage Bot",
+  "short_name": "Dosage Bot",
   "description": "Pharmacokinetic dose planning tool for subcutaneous tirzepatide. Educational use only.",
   "start_url": "/",
   "scope": "/",
