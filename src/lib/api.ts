@@ -26,3 +26,34 @@ export async function savePatientData(data: PatientData): Promise<void> {
 export async function deletePatientData(id: string): Promise<void> {
   await fetch(`${API_BASE}/patients/${id}`, { method: 'DELETE' })
 }
+
+// Changelog types
+export type ChangelogEntry = {
+  timestamp: string
+  changes: Array<{
+    type: string
+    planId?: string
+    planName?: string
+    planType?: string
+    doseId?: string
+    doseDescription?: string
+    fields?: Record<string, { old: unknown; new: unknown }>
+  }>
+}
+
+export async function fetchChangelog(patientId: string): Promise<ChangelogEntry[]> {
+  const res = await fetch(`${API_BASE}/patients/${patientId}/changelog`)
+  if (!res.ok) return []
+  return res.json()
+}
+
+export async function restorePatientState(patientId: string, targetTimestamp: string): Promise<PatientData> {
+  const res = await fetch(`${API_BASE}/patients/${patientId}/restore`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ targetTimestamp }),
+  })
+  if (!res.ok) throw new Error('Restore failed')
+  const body = await res.json()
+  return body.data
+}

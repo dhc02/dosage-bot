@@ -12,6 +12,8 @@ const PLAN_COLORS: Record<PlanType, string> = {
   actual: '#10b981',
 }
 
+const MAX_UNDO_STACK = 50
+
 function createDefaultPatient(): PatientData {
   const patientId = nanoid()
   const baselinePlan: Plan = {
@@ -39,7 +41,12 @@ function createDefaultPatient(): PatientData {
   }
 }
 
-// Debounced save to API — saves the specific patient that changed
+// Deep clone via JSON — fast enough for our data sizes
+function clone<T>(obj: T): T {
+  return JSON.parse(JSON.stringify(obj))
+}
+
+// Debounced save to API
 let saveTimers: Record<string, ReturnType<typeof setTimeout>> = {}
 
 function debouncedSavePatient(patientData: PatientData) {
@@ -57,12 +64,22 @@ interface PatientStore {
   activePatientId: string | null;
   loaded: boolean;
 
+  // Undo/redo stacks (not persisted, memory-only)
+  undoStack: PatientData[];
+  redoStack: PatientData[];
+
   // Lifecycle
   loadFromServer: () => Promise<void>;
 
   // Derived
   getActivePatient: () => PatientData | undefined;
   getActivePlan: (type: PlanType) => Plan | undefined;
+
+  // Undo/Redo
+  undo: () => void;
+  redo: () => void;
+  hasUndo: () => boolean;
+  hasRedo: () => boolean;
 
   // Patient CRUD
   addPatient: (name: string) => void;
@@ -95,15 +112,31 @@ interface PatientStore {
 export const usePatientStore = create<PatientStore>()(
   persist(
     (set, get) => {
-      function updateActivePatient(updater: (pd: PatientData) => PatientData) {
+      function pushUndoSnapshot() {
         const { activePatientId, patients } = get()
         if (!activePatientId) return
+        const active = patients.find(p => p.patient.id === activePatientId)
+        if (!active) return
+        const snapshot = clone(active)
+
+        set(state => {
+          const stack = [...state.undoStack, snapshot]
+          if (stack.length > MAX_UNDO_STACK) stack.shift()
+          return { undoStack: stack, redoStack: [] }
+        })
+      }
+
+      function updateActivePatient(updater: (pd: PatientData) => PatientData, skipUndo = false) {
+        const { activePatientId, patients } = get()
+        if (!activePatientId) return
+
+        if (!skipUndo) pushUndoSnapshot()
+
         const newPatients = patients.map(p =>
           p.patient.id === activePatientId ? updater(p) : p
         )
         set({ patients: newPatients })
 
-        // Save changed patient to server
         const changed = newPatients.find(p => p.patient.id === activePatientId)
         if (changed) debouncedSavePatient(changed)
       }
@@ -117,19 +150,78 @@ export const usePatientStore = create<PatientStore>()(
         patients: [],
         activePatientId: null,
         loaded: false,
+        undoStack: [],
+        redoStack: [],
+
+        undo() {
+          const { undoStack, patients, activePatientId } = get()
+          if (undoStack.length === 0 || !activePatientId) return
+
+          const previous = undoStack[undoStack.length - 1]
+          const newStack = undoStack.slice(0, -1)
+
+          // Push current state to redo
+          const current = patients.find(p => p.patient.id === activePatientId)
+          const redoEntry = current ? clone(current) : null
+
+          const newPatients = patients.map(p =>
+            p.patient.id === activePatientId ? clone(previous) : p
+          )
+
+          const newRedo = redoEntry
+            ? [...get().redoStack, redoEntry]
+            : get().redoStack
+
+          set({ patients: newPatients, undoStack: newStack, redoStack: newRedo })
+
+          // Save the restored state
+          const restored = newPatients.find(p => p.patient.id === activePatientId)
+          if (restored) debouncedSavePatient(restored)
+        },
+
+        redo() {
+          const { redoStack, patients, activePatientId } = get()
+          if (redoStack.length === 0 || !activePatientId) return
+
+          const next = redoStack[redoStack.length - 1]
+          const newRedo = redoStack.slice(0, -1)
+
+          // Push current state to undo
+          const current = patients.find(p => p.patient.id === activePatientId)
+          if (current) {
+            const snapshot = clone(current)
+            const newUndo = [...get().undoStack, snapshot]
+            set({ undoStack: newUndo })
+          }
+
+          const newPatients = patients.map(p =>
+            p.patient.id === activePatientId ? clone(next) : p
+          )
+
+          set({ patients: newPatients, redoStack: newRedo })
+
+          const restored = newPatients.find(p => p.patient.id === activePatientId)
+          if (restored) debouncedSavePatient(restored)
+        },
+
+        hasUndo() {
+          return get().undoStack.length > 0
+        },
+
+        hasRedo() {
+          return get().redoStack.length > 0
+        },
 
         async loadFromServer() {
           try {
             const list = await api.fetchPatientList()
             if (list.length === 0) {
-              // No patients on server — create default and save it
               const defaultPd = createDefaultPatient()
               await api.savePatientData(defaultPd)
-              set({ patients: [defaultPd], activePatientId: defaultPd.patient.id, loaded: true })
+              set({ patients: [defaultPd], activePatientId: defaultPd.patient.id, loaded: true, undoStack: [], redoStack: [] })
               return
             }
 
-            // Load full data for all patients
             const allData = await Promise.all(list.map(p => api.fetchPatientData(p.id)))
             const current = get()
             set({
@@ -138,14 +230,15 @@ export const usePatientStore = create<PatientStore>()(
                 ? current.activePatientId
                 : allData[0].patient.id,
               loaded: true,
+              undoStack: [],
+              redoStack: [],
             })
           } catch {
-            // Server unavailable — fall back to localStorage data (already loaded by persist)
             console.warn('API server unavailable, using localStorage data')
             const current = get()
             if (current.patients.length === 0) {
               const defaultPd = createDefaultPatient()
-              set({ patients: [defaultPd], activePatientId: defaultPd.patient.id, loaded: true })
+              set({ patients: [defaultPd], activePatientId: defaultPd.patient.id, loaded: true, undoStack: [], redoStack: [] })
             } else {
               set({ loaded: true })
             }
@@ -174,8 +267,9 @@ export const usePatientStore = create<PatientStore>()(
           set(state => ({
             patients: [...state.patients, newPatient],
             activePatientId: newPatient.patient.id,
+            undoStack: [],
+            redoStack: [],
           }))
-          // Save new patient to server
           debouncedSavePatient(newPatient)
         },
 
@@ -187,6 +281,8 @@ export const usePatientStore = create<PatientStore>()(
               activePatientId: state.activePatientId === id
                 ? (filtered[0]?.patient.id ?? null)
                 : state.activePatientId,
+              undoStack: [],
+              redoStack: [],
             }
           })
           api.deletePatientData(id).catch(err => {
@@ -195,6 +291,7 @@ export const usePatientStore = create<PatientStore>()(
         },
 
         renamePatient(id: string, name: string) {
+          pushUndoSnapshot()
           const newPatients = get().patients.map(p =>
             p.patient.id === id
               ? { ...p, patient: { ...p.patient, name } }
@@ -206,10 +303,11 @@ export const usePatientStore = create<PatientStore>()(
         },
 
         setActivePatient(id: string) {
-          set({ activePatientId: id })
+          set({ activePatientId: id, undoStack: [], redoStack: [] })
         },
 
         updatePatientWeight(id: string, weightKg: number | undefined) {
+          pushUndoSnapshot()
           const newPatients = get().patients.map(p =>
             p.patient.id === id
               ? { ...p, patient: { ...p.patient, weightKg } }
@@ -385,6 +483,11 @@ export const usePatientStore = create<PatientStore>()(
     },
     {
       name: 'tirzepatide-scheduler-storage',
+      partialize: (state) => {
+        // Don't persist undo/redo stacks
+        const { undoStack, redoStack, ...rest } = state
+        return rest
+      },
     },
   ),
 )
@@ -398,5 +501,4 @@ if (initialState.patients.length === 0) {
     activePatientId: defaultPd.patient.id,
   })
 }
-// Kick off server load
 usePatientStore.getState().loadFromServer()
