@@ -3,7 +3,7 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml .npmrc ./
-RUN pnpm install
+RUN pnpm config set onlyBuiltDependencies '[]' --location=project && pnpm approve-builds esbuild && pnpm install
 
 COPY . .
 RUN pnpm build
@@ -14,7 +14,7 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml .npmrc ./
-RUN pnpm install
+RUN pnpm config set onlyBuiltDependencies '[]' --location=project && pnpm approve-builds esbuild && pnpm install
 
 COPY --from=build /app/dist ./dist
 COPY server ./server
