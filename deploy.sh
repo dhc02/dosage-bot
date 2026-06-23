@@ -5,7 +5,7 @@ set -euo pipefail
 # Usage: ./deploy.sh [--build-only]
 
 UNRAID_HOST="root@192.168.200.112"
-UNRAID_PROJECT_DIR="/boot/config/plugins/compose.manager/projects/dosage-bot"
+UNRAID_PROJECT_DIR="/boot/config/plugins/compose.manager/projects/dosage_bot"
 UNRAID_APPDATA_DIR="/mnt/user/appdata/dosage-bot"
 REPO_URL="https://github.com/dhc02/dosage-bot.git"
 UNRAID_SRC_DIR="/mnt/user/appdata/dosage-bot/src"
@@ -40,7 +40,7 @@ ssh "$UNRAID_HOST" bash -s <<'REMOTE'
 # Image-only compose (NO build:) so the Compose Manager boot-time autostart
 # event can `up -d` without attempting a build at array start (which fails
 # silently — build context / array may not be ready that early in boot).
-cat > /boot/config/plugins/compose.manager/projects/dosage-bot/docker-compose.yml <<'COMPOSE'
+cat > /boot/config/plugins/compose.manager/projects/dosage_bot/docker-compose.yml <<'COMPOSE'
 services:
   dosage-bot:
     image: dosage-bot:latest
@@ -61,8 +61,8 @@ COMPOSE
 # Enable boot-time autostart. The compose project name MUST equal the sanitized
 # `name` file (hyphens -> underscores) = dosage_bot, or autostart creates a
 # conflicting container.
-printf 'true' > /boot/config/plugins/compose.manager/projects/dosage-bot/autostart
-printf 'dosage_bot' > /boot/config/plugins/compose.manager/projects/dosage-bot/name
+printf 'true' > /boot/config/plugins/compose.manager/projects/dosage_bot/autostart
+printf 'dosage_bot' > /boot/config/plugins/compose.manager/projects/dosage_bot/name
 REMOTE
 
 if [[ "${1:-}" == "--build-only" ]]; then
@@ -77,7 +77,7 @@ fi
 echo "==> Building image..."
 ssh "$UNRAID_HOST" "docker build -t dosage-bot:latest $UNRAID_SRC_DIR"
 echo "==> Starting container (project: dosage_bot)..."
-ssh "$UNRAID_HOST" "cd $UNRAID_PROJECT_DIR && docker compose -p dosage-bot down 2>/dev/null; docker compose -p dosage_bot up -d"
+ssh "$UNRAID_HOST" "cd $UNRAID_PROJECT_DIR && docker compose -p dosage_bot up -d"
 
 echo ""
 echo "==> Deployed! Access at http://192.168.200.112:5180"
