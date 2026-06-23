@@ -6,6 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Tirzepatide PK Scheduler — a web-based pharmacokinetic dose planning tool for subcutaneous tirzepatide. Educational/personal use only, not a medical product. Uses a one-compartment PK model with first-order absorption validated against published literature.
 
+## Deploy (unraid)
+
+`./deploy.sh` — pulls source on unraid into `/mnt/user/appdata/dosage-bot/src`, builds + tags `dosage-bot:latest`, writes an **image-only** compose to the Compose Manager project, and starts under project name **`dosage_bot`**. Access: `http://192.168.200.112:5180` (LAN-only).
+
+Autostart on reboot is handled by the Compose Manager `started` event. Two invariants make it reliable: (1) the projects-folder compose has **no `build:`** (boot-time builds fail silently), and (2) the compose project name is `dosage_bot` (underscores) to match the sanitized `name` file — a hyphenated project name would make autostart create a conflicting container.
+
 ## Commands
 
 ```bash

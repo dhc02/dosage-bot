@@ -37,10 +37,12 @@ REMOTE
 #    (points build context to the cloned source)
 echo "==> Installing compose file..."
 ssh "$UNRAID_HOST" bash -s <<'REMOTE'
+# Image-only compose (NO build:) so the Compose Manager boot-time autostart
+# event can `up -d` without attempting a build at array start (which fails
+# silently — build context / array may not be ready that early in boot).
 cat > /boot/config/plugins/compose.manager/projects/dosage-bot/docker-compose.yml <<'COMPOSE'
 services:
   dosage-bot:
-    build: /mnt/user/appdata/dosage-bot/src
     image: dosage-bot:latest
     container_name: dosage-bot
     restart: unless-stopped
@@ -56,18 +58,26 @@ services:
       net.unraid.docker.webui: 'http://[IP]:[PORT:5180]'
       net.unraid.docker.shell: ''
 COMPOSE
+# Enable boot-time autostart. The compose project name MUST equal the sanitized
+# `name` file (hyphens -> underscores) = dosage_bot, or autostart creates a
+# conflicting container.
+printf 'true' > /boot/config/plugins/compose.manager/projects/dosage-bot/autostart
+printf 'dosage_bot' > /boot/config/plugins/compose.manager/projects/dosage-bot/name
 REMOTE
 
 if [[ "${1:-}" == "--build-only" ]]; then
   echo "==> Building image (not starting)..."
-  ssh "$UNRAID_HOST" "cd $UNRAID_SRC_DIR && docker compose build"
+  ssh "$UNRAID_HOST" "docker build -t dosage-bot:latest $UNRAID_SRC_DIR"
   echo "==> Build complete."
   exit 0
 fi
 
-# 4. Build and deploy
-echo "==> Building and starting containers..."
-ssh "$UNRAID_HOST" "cd $UNRAID_PROJECT_DIR && docker compose down 2>/dev/null; docker compose up -d --build"
+# 4. Build the image explicitly (tagged), then start WITHOUT --build so the
+#    running container is identical to what the boot-time autostart event starts.
+echo "==> Building image..."
+ssh "$UNRAID_HOST" "docker build -t dosage-bot:latest $UNRAID_SRC_DIR"
+echo "==> Starting container (project: dosage_bot)..."
+ssh "$UNRAID_HOST" "cd $UNRAID_PROJECT_DIR && docker compose -p dosage-bot down 2>/dev/null; docker compose -p dosage_bot up -d"
 
 echo ""
 echo "==> Deployed! Access at http://192.168.200.112:5180"
