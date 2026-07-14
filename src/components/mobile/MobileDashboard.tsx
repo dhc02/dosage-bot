@@ -39,12 +39,34 @@ export function MobileDashboard() {
     return computeMetrics(curve, baselinePlan.doses)
   }, [baselinePlan])
 
+  const lastActualDose = useMemo(() => {
+    if (!actualPlan || actualPlan.doses.length === 0) return null
+    const sorted = [...actualPlan.doses].sort((a, b) => {
+      const aDate = new Date(`${a.date}T${a.time}`).getTime()
+      const bDate = new Date(`${b.date}T${b.time}`).getTime()
+      return bDate - aDate
+    })
+    return sorted[0]
+  }, [actualPlan])
+
+  const lastDoseDateStr = useMemo(() => {
+    if (!lastActualDose) return null
+    const d = new Date(`${lastActualDose.date}T${lastActualDose.time}`)
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+      + ' ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+  }, [lastActualDose])
+
   const hasActual = !!actualPlan && actualPlan.doses.length > 0
 
   return (
     <>
       <div className="flex flex-col gap-3 p-4 pb-32">
-        <CurrentLevelCard concentration={currentConcentration} hasActualPlan={hasActual} />
+        <CurrentLevelCard
+          concentration={currentConcentration}
+          hasActualPlan={hasActual}
+          lastDoseMg={lastActualDose?.amountMg}
+          lastDoseDate={lastDoseDateStr}
+        />
 
         {hasActual && <SlopeIndicator slopeNgPerMlPerHour={currentSlopePerHour} />}
 
