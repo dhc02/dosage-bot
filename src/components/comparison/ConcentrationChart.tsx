@@ -78,35 +78,47 @@ export function ConcentrationChart({
   const [zoomDomain, setZoomDomain] = useState<[number, number] | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const touchDistRef = useRef<number | null>(null)
-  const prevDataLenRef = useRef(data.length)
-
-  // Reset zoom when data changes significantly (plan switch, visibility toggle)
-  if (data.length !== prevDataLenRef.current) {
-    prevDataLenRef.current = data.length
-    if (zoomDomain) setZoomDomain(null)
-  }
 
   const fullMin = data.length > 0 ? data[0].timestamp : 0
   const fullMax = data.length > 0 ? data[data.length - 1].timestamp : 0
+  const prevRangeRef = useRef(`${fullMin}-${fullMax}-${data.length}`)
 
-  const xMin = zoomDomain ? zoomDomain[0] : fullMin
-  const xMax = zoomDomain ? zoomDomain[1] : fullMax
+  // Reset zoom when the data's time range or length changes
+  // (dose date edits, plan switches, visibility toggles)
+  const rangeKey = `${fullMin}-${fullMax}-${data.length}`
+  if (rangeKey !== prevRangeRef.current) {
+    prevRangeRef.current = rangeKey
+    if (zoomDomain) setZoomDomain(null)
+  }
+
+  // Validate zoom domain is still within data bounds
+  const validZoom = zoomDomain
+    && zoomDomain[0] >= fullMin
+    && zoomDomain[1] <= fullMax
+    && zoomDomain[1] - zoomDomain[0] >= MIN_RANGE_MS
+    ? zoomDomain
+    : null
+
+  const xMin = validZoom ? validZoom[0] : fullMin
+  const xMax = validZoom ? validZoom[1] : fullMax
 
   // Auto-scale Y to visible data
-  const visibleData = zoomDomain
-    ? data.filter(d => d.timestamp >= zoomDomain[0] && d.timestamp <= zoomDomain[1])
+  const visibleData = validZoom
+    ? data.filter(d => d.timestamp >= validZoom[0] && d.timestamp <= validZoom[1])
     : data
 
-  const maxConc = visibleData.reduce((max, d) => {
-    const vals = [d.baseline ?? 0, d.experiment ?? 0, d.actual ?? 0]
-    return Math.max(max, ...vals)
-  }, 0)
+  const maxConc = visibleData.length > 0
+    ? visibleData.reduce((max, d) => {
+        const vals = [d.baseline ?? 0, d.experiment ?? 0, d.actual ?? 0]
+        return Math.max(max, ...vals)
+      }, 0)
+    : 100 // fallback if no visible data
 
-  const yMax = Math.ceil(maxConc / 50) * 50 + 50
+  const yMax = Math.max(50, Math.ceil(maxConc / 50) * 50 + 50)
 
   const zoom = useCallback((direction: number, centerFraction: number = 0.5) => {
-    const currentMin = zoomDomain ? zoomDomain[0] : fullMin
-    const currentMax = zoomDomain ? zoomDomain[1] : fullMax
+    const currentMin = validZoom ? validZoom[0] : fullMin
+    const currentMax = validZoom ? validZoom[1] : fullMax
     const range = currentMax - currentMin
 
     const delta = range * ZOOM_FACTOR * direction
@@ -126,7 +138,7 @@ export function ConcentrationChart({
     } else {
       setZoomDomain([clampedMin, clampedMax])
     }
-  }, [zoomDomain, fullMin, fullMax])
+  }, [validZoom, fullMin, fullMax])
 
   // Wheel zoom
   useEffect(() => {
@@ -208,7 +220,7 @@ export function ConcentrationChart({
     }
   }
 
-  const isZoomed = zoomDomain !== null
+  const isZoomed = validZoom !== null
 
   // Compute brush indices from current zoom state so pinch/Ctrl-scroll zoom
   // is reflected in the brush handle positions.
@@ -220,8 +232,8 @@ export function ConcentrationChart({
     : data.length - 1
 
   // Visible dose markers
-  const visibleMarkers = zoomDomain
-    ? doseMarkers.filter(m => m.timestamp >= zoomDomain[0] && m.timestamp <= zoomDomain[1])
+  const visibleMarkers = validZoom
+    ? doseMarkers.filter(m => m.timestamp >= validZoom[0] && m.timestamp <= validZoom[1])
     : doseMarkers
 
   return (
